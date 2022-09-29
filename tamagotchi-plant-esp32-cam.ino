@@ -2,7 +2,6 @@
 #include "esp_http_server.h"
 #include "esp_timer.h"
 #include "esp_camera.h"
-#include "camera_index.h"
 #include "Arduino.h"
 #include "fd_forward.h"
 #include "fr_forward.h"
@@ -14,11 +13,6 @@ const char* password = "LopezMurillo128";
 #define ENROLL_CONFIRM_TIMES 5
 #define FACE_ID_SAVE_NUMBER 7
 
-// Select camera model
-//#define CAMERA_MODEL_WROVER_KIT
-//#define CAMERA_MODEL_ESP_EYE
-//#define CAMERA_MODEL_M5STACK_PSRAM
-//#define CAMERA_MODEL_M5STACK_WIDE
 #define CAMERA_MODEL_AI_THINKER
 #include "camera_pins.h"
 
@@ -31,6 +25,7 @@ long current_millis;
 long last_detected_millis = 0;
 
 #define relay_pin 2 // pin 12 can also be used
+#define FLASH 4
 unsigned long door_opened_millis = 0;
 long interval = 5000;           // open lock for ... milliseconds
 bool face_recognised = false;
@@ -97,6 +92,10 @@ void setup() {
 
   digitalWrite(relay_pin, LOW);
   pinMode(relay_pin, OUTPUT);
+  pinMode(FLAH, OUTPUT);
+  digitalWrite(FLASH, HIGH);
+  delay(100);
+  digitalWrite(FLASH, LOW);
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -124,16 +123,12 @@ void setup() {
     config.frame_size = FRAMESIZE_UXGA;
     config.jpeg_quality = 10;
     config.fb_count = 2;
+    Serial.println("psramFound");
   } else {
     config.frame_size = FRAMESIZE_SVGA;
     config.jpeg_quality = 12;
     config.fb_count = 1;
   }
-
-#if defined(CAMERA_MODEL_ESP_EYE)
-  pinMode(13, INPUT_PULLUP);
-  pinMode(14, INPUT_PULLUP);
-#endif
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
@@ -145,6 +140,7 @@ void setup() {
   sensor_t * s = esp_camera_sensor_get();
   s->set_framesize(s, FRAMESIZE_QVGA);
 
+// En caso de necesitar invertir la imagen por bien del diseño
 #if defined(CAMERA_MODEL_M5STACK_WIDE)
   s->set_vflip(s, 1);
   s->set_hmirror(s, 1);
@@ -155,10 +151,11 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
+
   Serial.println("");
   Serial.println("WiFi connected");
 
-  app_httpserver_init();
+  //app_httpserver_init();
   app_facenet_main();
   socket_server.listen(82);
 
@@ -167,28 +164,29 @@ void setup() {
   Serial.println("' to connect");
 }
 
-static esp_err_t index_handler(httpd_req_t *req) {
-  httpd_resp_set_type(req, "text/html");
-  httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
-  return httpd_resp_send(req, (const char *)index_ov2640_html_gz, index_ov2640_html_gz_len);
-}
+// static esp_err_t index_handler(httpd_req_t *req) {
+//   httpd_resp_set_type(req, "text/html");
+//   httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+//   return httpd_resp_send(req, (const char *)index_ov2640_html_gz, index_ov2640_html_gz_len);
+// }
 
-httpd_uri_t index_uri = {
-  .uri       = "/",
-  .method    = HTTP_GET,
-  .handler   = index_handler,
-  .user_ctx  = NULL
-};
+// httpd_uri_t index_uri = {
+//   .uri       = "/",
+//   .method    = HTTP_GET,
+//   .handler   = index_handler,
+//   .user_ctx  = NULL
+// };
 
-void app_httpserver_init ()
-{
-  httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-  if (httpd_start(&camera_httpd, &config) == ESP_OK)
-    Serial.println("httpd_start");
-  {
-    httpd_register_uri_handler(camera_httpd, &index_uri);
-  }
-}
+// Quitar esto afecta? 
+// void app_httpserver_init ()
+// {
+//   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+//   if (httpd_start(&camera_httpd, &config) == ESP_OK)
+//     Serial.println("httpd_start");
+//   {
+//     httpd_register_uri_handler(camera_httpd, &index_uri);
+//   }
+// }
 
 void app_facenet_main()
 {

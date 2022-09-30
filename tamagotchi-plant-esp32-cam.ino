@@ -30,6 +30,9 @@ using namespace websockets;
 WebsocketsServer socket_server;
 WiFiMulti wifiMulti;
 
+#define MY_RX 14
+#define MY_TX 15
+
 camera_fb_t * fb = NULL;
 
 long current_millis;
@@ -184,6 +187,12 @@ void setup() {
     Serial.print(".");
   }
 
+  Serial2.begin(9600, SERIAL_8N1, MY_RX, MY_TX);
+
+  String ip = String(WiFi.localIP());
+  Serial2.print("myip");
+  Serial2.println(WiFi.localIP());
+
   Serial.println("");
   Serial.println("WiFi connected");
 
@@ -196,29 +205,6 @@ void setup() {
   Serial.println("' to connect");
 }
 
-// static esp_err_t index_handler(httpd_req_t *req) {
-//   httpd_resp_set_type(req, "text/html");
-//   httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
-//   return httpd_resp_send(req, (const char *)index_ov2640_html_gz, index_ov2640_html_gz_len);
-// }
-
-// httpd_uri_t index_uri = {
-//   .uri       = "/",
-//   .method    = HTTP_GET,
-//   .handler   = index_handler,
-//   .user_ctx  = NULL
-// };
-
-// Quitar esto afecta? 
-// void app_httpserver_init ()
-// {
-//   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-//   if (httpd_start(&camera_httpd, &config) == ESP_OK)
-//     Serial.println("httpd_start");
-//   {
-//     httpd_register_uri_handler(camera_httpd, &index_uri);
-//   }
-// }
 
 void app_facenet_main()
 {
@@ -363,6 +349,7 @@ void loop() {
               sprintf(recognised_message, "DOOR OPEN FOR %s", f->id_name);
               open_door(client);
               client.send(recognised_message);
+              Serial2.println("hola" + String(f->id_name));
             }
             else
             {

@@ -1,3 +1,8 @@
+/**
+ * MAC:
+ * 78:21:84:78:A3:B4
+*/
+
 #include <ArduinoWebsockets.h>
 #include "esp_http_server.h"
 #include "esp_timer.h"
@@ -6,9 +11,14 @@
 #include "fd_forward.h"
 #include "fr_forward.h"
 #include "fr_flash.h"
+#include <WiFiMulti.h>
 
-const char* ssid = "TheCoolestWiFiLM";
-const char* password = "LopezMurillo128";
+char *redes[4][2] = {
+  {"TheCoolestWiFiLM", "LopezMurillo128"},
+  {"WifiLM", "LopezMurillo128"},
+  {"Honor 10 Lite", "tommywashere"},
+  {"redMolina2.4G", "Molina_2021"}
+};
 
 #define ENROLL_CONFIRM_TIMES 5
 #define FACE_ID_SAVE_NUMBER 7
@@ -18,13 +28,14 @@ const char* password = "LopezMurillo128";
 
 using namespace websockets;
 WebsocketsServer socket_server;
+WiFiMulti wifiMulti;
 
 camera_fb_t * fb = NULL;
 
 long current_millis;
 long last_detected_millis = 0;
 
-#define relay_pin 2 // pin 12 can also be used
+#define relay_pin 33 // pin 12 can also be used
 #define FLASH 4
 unsigned long door_opened_millis = 0;
 long interval = 5000;           // open lock for ... milliseconds
@@ -92,7 +103,7 @@ void setup() {
 
   digitalWrite(relay_pin, LOW);
   pinMode(relay_pin, OUTPUT);
-  pinMode(FLAH, OUTPUT);
+  pinMode(FLASH, OUTPUT);
   digitalWrite(FLASH, HIGH);
   delay(100);
   digitalWrite(FLASH, LOW);
@@ -140,13 +151,34 @@ void setup() {
   sensor_t * s = esp_camera_sensor_get();
   s->set_framesize(s, FRAMESIZE_QVGA);
 
+  // Se ocupó rotar
+  s->set_vflip(s, 1);
+  s->set_hmirror(s, 1);
+
 // En caso de necesitar invertir la imagen por bien del diseño
 #if defined(CAMERA_MODEL_M5STACK_WIDE)
   s->set_vflip(s, 1);
   s->set_hmirror(s, 1);
 #endif
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  
+  for(auto red : redes){
+    Serial.print("SSID: ");
+    Serial.print(red[0]);
+    Serial.print("\t\tPassword: ");
+    Serial.println(red[1]);
+    wifiMulti.addAP(red[0], red[1]);
+  }
+  
+  Serial.println("Connecting to WiFi...");
+  int i = 0;
 
-  WiFi.begin(ssid, password);
+  while (wifiMulti.run() != WL_CONNECTED) {
+    delay(1250);
+    Serial.print(++i); Serial.print(' ');
+  }
+  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
